@@ -1,0 +1,508 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{float}
+\usepackage{subcaption} 
+\usepackage{fancyhdr}
+\usepackage[margin=1in,headheight=50pt,headsep=43pt]{geometry} % Adjust headsep to move text lower
+
+% Set up the fancy header
+\pagestyle{fancy}
+\fancyhf{} % Clear all header and footer fields
+\fancyhead[L]{\includegraphics[width=3cm]{Sharklogo.png}} % Add logo to the left corner
+\fancyhead[R]{} % Right side is empty
+
+
+
+\begin{document}
+
+
+
+\title{\textbf{\Large Shark Tank: Analyzing Investment Decisions and Entrepreneurial Outcomes}}
+\author{\textbf{Jorge Arturo Medina Garduno} \\ McGill University}
+\date{06/12/2024}
+
+% Title Page Content
+\maketitle
+
+\noindent\textbf{Abstract:} This project analyzes investment decisions on Shark Tank, exploring whether business metrics or show dynamics drive outcomes. Using predictive models and clustering techniques, we found that factors like the ratio of amount asked to valuation and project category are the strongest predictors of success, while television-related variables have minimal influence. The findings suggest entrepreneurs should prioritize robust financial valuations and strategic category selection, as rejection on the show does not necessarily reflect business viability. \\
+\smallskip
+
+\section{Introduction}
+
+Shark Tank is a popular TV series where, in each episode, entrepreneurs pitch their business ideas to a panel of five investors, or ``sharks.'' These sharks evaluate the pitches and, based on their ``valuation'' of the business proposals, decide whether to invest resources in exchange for equity. The show has gained significant popularity in recent years, to the point where it is now being incorporated into some business school curricula as part of entrepreneurship and business strategy classes (Investopedia, 2024).
+
+However, it's essential to remember that Shark Tank is ultimately a television program, with one of its primary distributors in the U.S. being ABC. Why is this worth noting? Because the valuation methods presented on the show often differ from traditional business valuation practices (Investopedia, n.d.). While the sharks sometimes rely on their instincts or ``hunches'' to make investment decisions—consistent with the show’s entertainment-focused premises—this raises the question: does an innate bias exist to prioritize ratings over well-thought-out investments?
+
+This bias becomes even more relevant for entrepreneurs whose pitches are rejected. Numerous examples exist of rejected pitches achieving remarkable success later. For instance, the founder of Ring, a company that introduced smart doorbells, received an immediate ``no'' from all five sharks in Season 5—despite his investment of \$10,000 for his presentation. However, the company was later acquired by Amazon, generating revenues of approximately \$577 million annually (Yahoo Finance, 2023). Such examples highlight not only the emotional toll on entrepreneurs but also the significant investment of time, money, and effort required to participate in the show.
+
+This project aims to analyze the factors influencing the final investment decisions on Shark Tank and challenges the notion of unbiased, well-reasoned investments. Furthermore, it seeks to identify systematic approaches entrepreneurs can use to improve their pitches and increase their chances of success.
+
+\subsection{Initial Hypothesis}
+
+The primary focus of the sharks may not be a proper valuation of the projects. Instead, their decisions could be influenced by factors such as the season or episode they are situated in, suggesting that external variables might have greater predictive power than the sharks’ presence and objective evaluation.
+
+\subsection{Objectives}
+
+\begin{enumerate}
+    \item \textbf{Develop a Tree-Based Predictive Model:} Build a predictive model to analyze the likelihood of a project securing a deal, as well as assess the importance of a variety of factors shaping the sharks' decisions.
+    \item \textbf{Build a Discriminant Analysis Model:} Examine investment patterns by developing a discriminant analysis model to predict the likelihood of investment based on the 10 main sharks and project categories.
+    \item \textbf{Perform K-Means Clustering:} Use clustering techniques to distinguish relevant characteristics between successful and unsuccessful projects, in order to provide actionable insights for entrepreneurs.
+\end{enumerate}
+
+\section{Data Description}
+
+The initial dataset consisted of 15 columns with 496 values (See Appendix Fig 1).
+
+\subsection{Data Inconsistencies}
+
+The dataset contained 72 missing values in the entrepreneur’s column and 38 in the website column. The entrepreneur’s column was dropped entirely due to its lack of predictive power, as individual names do not contribute meaningful information to the prediction task.
+
+For the website variable, a binary column (\textit{does\_it\_have\_website}) was created to indicate whether a pitch had a website. However, after analyzing the distribution of this column, it was found that almost 90\% of the entries indicated the presence of a website (38 ``no'' versus 457 ``yes''), rendering the feature mostly constant. Consequently, this column was also dropped.
+
+\subsection{Testing Interactions Between Variables}
+
+Before feature engineering, the relationships between variables were explored using a correlation matrix. Most predictors exhibited low correlations with each other, which later posed a challenge as no numeric variable demonstrated a strong relationship with the target (\textit{deal}). The highest observed correlation was between \textit{askedFor} and \textit{valuation} ($0.76$).
+
+To address this, a Principal Component Analysis (PCA) was conducted to examine the relationship between these two variables. The first two principal components explained $54.88\%$ of the variance in the data, and both \textit{askedFor} and \textit{valuation} were positioned closely along the first component. This analysis guided subsequent feature engineering to reduce dimensionality (See appendix Fig 2).
+
+\subsection{Description of Features}
+
+The dataset’s features were examined using histograms and boxplots to understand their distributions and characteristics. Among the numeric features, both \textit{valuation} and \textit{askedFor} had noticeable outliers, with values exceeding three standard deviations from the mean. The episode data exhibited an imbalance, with fewer observations in later episodes within each season. The \textit{category} variable was highly dispersed and imbalanced, with most categories accounting for roughly $1\%$ of the dataset, while two categories—\textit{specialty food} ($12.53\%$) and \textit{novelties} ($7.07\%$)—were significantly overrepresented. Similarly, the \textit{location} variable exhibited high cardinality, with 255 unique values. The most represented locations were Los Angeles, CA ($8.28\%$), New York, NY ($6.06\%$), and San Francisco, CA ($5.05\%$) (See appendix Fig 3–Fig 18).
+
+The \textit{shark} variables demonstrated substantial overrepresentation for certain investors. For instance, Kevin O’Leary appeared in $76.5\%$ of entries as \textit{shark3}. Furthermore, several sharks appeared in different roles, such as \textit{shark3} and \textit{shark4}, reflecting repeated values that did not add new information. This redundancy highlighted the need for a more efficient representation of the \textit{shark} data.
+
+
+\subsection{Feature Engineering}
+
+To enhance predictive power and reduce dimensionality, various transformations and new features were created. Although natural language processing (NLP) was not applied to the project descriptions, a new variable, \textit{description\_length}, was introduced to capture the complexity of the projects by counting the number of characters in each description. This variable, however, also contained two outliers, which were subsequently removed.
+
+For the \textit{askedFor} and \textit{valuation} variables, a new feature, \textit{ratio\_asked\_valuation}, was created by taking the ratio of the two variables. This transformation addressed the multicollinearity issue while retaining the interaction between them. Upon further inspection, it was discovered that \textit{exchangeForStake} represented precisely this ratio multiplied by $100$. Leveraging insights from PCA, the following approach was adopted: the \textit{askedFor} variable was dropped, as it was highly correlated with the primary movement in PC1, while \textit{valuation}, which contributed slightly more to the principal component, was retained. The original \textit{exchangeForStake} was preserved for use in models like decision trees that do not require standardization, while the ratio (\textit{ratio\_asked\_valuation}) was used for models that benefit from normalized variables.
+
+The \textit{location} variable was initially simplified to state-level information but remained imbalanced, with California having $142$ appearances compared to $353$ for all other states combined. To address this, states were aggregated into broader geographic regions (North, South, East, and West). Further balancing was achieved by creating artificial groups to distribute California's dominance across multiple categories. However, a new column \textit{CA} was also included to indicate whether the state was California or not. After testing these two variables, the one that produced the best results was \textit{CA}, so the regions were not used.
+
+\textit{Shark} variables were transformed by consolidating underrepresented sharks (less than $5\%$ occurrence) into an ``Others'' category. Subsequently, a new column, \textit{investor\_combination}, was created to capture unique combinations of sharks appearing in pitches. Rare combinations were also grouped under ``Others'' to simplify the data. Interestingly, the ``Others'' category was dominated by combinations involving the main sharks (e.g., Barbara Corcoran, Robert Herjavec, Kevin O’Leary, and Daymond John) and a guest investor.
+
+The \textit{category} variable was restructured into broader groups based on thematic similarities, reducing the original number of categories from $55$ to $11$. Underrepresented categories were merged into an ``Other'' category to improve class balance. The \textit{season} variable was grouped into early seasons (Seasons $1$–$3$) and later seasons (Seasons $4$–$6$) to reduce dimensionality. A new variable, \textit{season\_part}, was introduced to divide episodes into early, mid, and late parts of each season, capturing the show’s chronological progression.
+
+Outliers in numeric features, including \textit{exchange\-For\-Stake}, 
+\textit{description\_length}, and \textit{ratio\_asked\_valuation}, were identified 
+and removed based on a three-standard-deviation threshold. This process affected 
+$2.6\allowbreak\%$ of the dataset, a negligible loss of data that resulted in more normalized 
+distributions.
+
+The continuous variables \textit{exchange\-For\-Stake}, \textit{description\_length}, and 
+\textit{ratio\_difference\_asked\_valuation} were then standardized to ensure compatibility 
+with models sensitive to scale, such as logistic regression and Linear Discriminant Analysis 
+(LDA). (See appendix Fig~$19$–Fig~$21$.)
+
+
+\subsection{Removal of predictors}
+
+Several variables were removed due to redundancy or lack of predictive power. The \textit{entrepreneur’s} variable was dropped as it offered no meaningful contribution to prediction. Similarly, the \textit{title} variable was excluded for the same reason. After feature engineering, other variables were removed, including \textit{episode.season}, which was replaced by more granular variables (\textit{season} and \textit{episode}), and \textit{description}, which was replaced by \textit{description\_length}. The individual \textit{shark} columns were replaced with the \textit{investor\_combination} variable. The \textit{askedFor} and \textit{valuation} variables were dropped in favor of the newly created \textit{ratio\_difference\_asked\_valuation}, which effectively addressed their redundancy. After this step, the data is ready for the model (See appendix Fig $22$–Fig $28$).
+
+
+\section{Model Selection}
+
+To analyze the factors influencing whether a deal is made, we explored three models: logistic regression, boosted trees, and Quadratic Discriminant Analysis (QDA). While predictive performance was important, the primary focus was on understanding the contribution of each predictor. Accuracy was chosen as the evaluation metric, ensuring that both ``deal'' and ``no deal'' instances were classified correctly.
+
+Given the imbalanced distribution of categorical variables and the relatively small dataset, cross-validation with 10 folds was employed instead of a simple train-test split. This approach provided a more reliable estimate of model performance by using the entire dataset across multiple splits for training and validation. All models were initially trained using the following predictors: \textit{category}, \textit{description\_length}, \textit{season\_part}, \textit{ratio\_difference}, \textit{multiple\_entrepreneurs}, \textit{investor\_combination}, \textit{season\_grouped}, \textit{CA} (California), and \textit{valuation}. The baseline categories for categorical variables were set as follows: the ``Baby and Child'' category for predictors of type, ``early season'' for season, ``Barbara Corcoran, Lori Greiner, Robert Herjavec, Kevin O'Leary, Mark Cuban'' for \textit{investor\_combination}, and ``first seasons'' for the \textit{season\_grouped} variable.
+
+\subsection{Logistic Regression}
+
+Logistic regression was initially applied with all predictors included. To refine the model, predictors with p-values greater than $0.10$ were excluded, as these did not contribute significantly to the prediction. For categorical variables, a significant p-value indicated that a category behaved differently from the baseline. \textit{Description\_length} emerged as a significant contributor to the model, while the \textit{ratio\_difference}, representing the gap between the amount asked and the valuation, proved to be the most important variable. \textit{Season\_grouped}, \textit{multiple\_entrepreneurs}, \textit{investor\_combination}, and \textit{CA} were not significant contributors. \textit{Valuation} was found to be significant.
+
+After removing non-significant predictors and re-running the regression, the model's accuracy improved from $0.58$ to $0.60$.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lccc}
+        \hline
+        \textbf{Logistic Regression Results} & \textbf{Estimate} & \textbf{Std. Error} & \textbf{Pr} \\ \hline
+        (Intercept)                         & 0.891             & 0.427               & 0.0370 * \\
+        Category - Entertainment and Recreation & 0.351             & 0.376               & 0.3448   \\
+        Category - Fashion and Apparel     & -0.862            & 0.242               & 0.0003 ** \\
+        Category - Food and Beverages      & -0.234            & 0.345               & 0.5048   \\
+        Category - Home and Living         & 0.193             & 0.402               & 0.6464   \\
+        Category - Other                   & -0.241            & 0.376               & 0.5194   \\
+        Category - Personal Care           & 0.702             & 0.419               & 0.0916   \\
+        Category - Professional Services   & -0.827            & 0.415               & 0.0476 * \\
+        Description Length                 & 0.026             & 0.012               & 0.0286 * \\
+        Ratio Difference Asked             & 3.544             & 1.082               & 0.0014 ** \\
+        Valuation                          & -8.133e-08        & 3.498e-08           & 0.0202 * \\ \hline
+        Observations                       & \multicolumn{3}{l}{469} \\
+        Log Likelihood                     & \multicolumn{3}{l}{-311.159} \\
+        Akaike Inf. Crit.                  & \multicolumn{3}{l}{644.319} \\ \hline
+    \end{tabular}
+    \caption{Coefficients in Logistic Regression}
+    \label{tab:logistic_regression}
+    \begin{flushleft}
+    \end{flushleft}
+\end{table}
+
+
+
+\subsection{Boosted Trees with Cross-Validation}
+
+Boosted trees were chosen over other tree-based models due to their ability to iteratively learn from errors, improving robustness and predictive power. In contrast, traditional tree-based models showed strong performance on the training set but failed to generalize well during validation. The boosted model employed a Bernoulli distribution and was tuned for optimal performance using between $100$ and $150$ trees. This model achieved the highest accuracy among the three, with a score of $0.70$.
+
+Feature importance analysis revealed that \textit{category} was the most influential predictor, followed by \textit{ratio\_difference}, \textit{investor\_combination}, \textit{CA}, and \textit{season\_grouped}.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lc}
+        \hline
+        \textbf{Feature Importance for Boosted Model} & \textbf{Relative Importance} \\ \hline
+        Description length    & 30.791 \\
+        Category              & 26.799 \\
+        Valuation             & 14.272 \\
+        Exchange for stake    & 12.187 \\
+        Season part           & 6.774  \\
+        Investor combination  & 5.800  \\
+        Multiple entrepreneurs & 2.516 \\
+        CA                    & 0.599  \\
+        Season grouped        & 0.262  \\ \hline
+    \end{tabular}
+    \caption{Feature importance for boosted model}
+    \label{tab:boosted_importance}
+\end{table}
+
+
+\subsection{Quadratic Discriminant Analysis (QDA)}
+
+QDA was applied to account for non-constant variance among predictors, which was expected due to skewed distributions. This approach also allowed for analysis of prior probabilities. The model achieved an accuracy of $0.66$, performing better than logistic regression but slightly below boosted trees.
+
+Most predictors exhibited similar means for ``deal'' and ``no deal'' groups. However, some categories such as \textit{description\_length}, \textit{fashion and apparel}, \textit{home and living}, and \textit{professional services} showed greater spread and were associated with a lower likelihood of securing a deal. Early seasons and later parts of a season were more likely to result in a deal, reinforcing observations from other models.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lc}
+        \hline
+        \textbf{QDA Model Results} & \\ \hline
+        \textbf{Metric} & \textbf{Value} \\ \hline
+        Accuracy        & 0.663 \\
+        Kappa           & 0.325 \\
+        Sensitivity     & 0.638 \\
+        Specificity     & 0.688 \\
+        Precision       & 0.661 \\
+        F1 Score        & 0.649 \\ \hline
+    \end{tabular}
+    \caption{QDA metrics}
+    \label{tab:qda_metrics}
+\end{table}
+
+
+\section{Clustering Techniques}
+
+Before finalizing conclusions, unsupervised clustering techniques were employed to identify patterns in the data.
+
+\subsection{Clustering with PCA}
+
+After plotting the values on a graph using the two principal components, which together explain $56.99\%$ of the variance in the data, we observed a disparity between the ``deal'' and ``no deal'' outcomes. This suggests that no single predictor significantly influences these components. However, there appears to be a slight concentration of ``no deal'' outcomes associated with the \textit{valuation} and \textit{amount asked} variables.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Results/PCA clusters.png} % Escaped spaces
+    \caption{PCA for clusters showing Deal and No Deal pitches.}
+    \label{fig:pca_clusters}
+\end{figure}
+
+\subsection{K-Means Clustering}
+
+K-means clustering was used to explore grouping patterns further, focusing on predictors such as \textit{episode} and \textit{season}. The within-cluster variation declined sharply from $2$ to $3$ clusters, with diminishing improvements beyond $3$ clusters. This observation aligned with the \textit{season\_part} variable, which categorized data into early, mid, and late parts of the season.
+
+When plotting ``deal'' and ``no deal'' outcomes with distinct symbols, no clear pattern emerged based on \textit{season} or \textit{episode}. This suggests that deals are not strongly influenced by these specific characteristics, emphasizing the need to focus on other predictors.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Results/Clustering K means.png} % Escaped spaces
+    \caption{K-means for season and episodes}
+    \label{fig:pca_clusters}
+\end{figure}
+
+
+\section{Results and Conclusions}
+
+Across all our models, the hypothesis that the television business side strongly influences whether an investment is made appears to be largely rejected. In our highest-accuracy model, the only variable related to the show’s television characteristics had some influence, but its importance was overshadowed by other factors, such as the category of the project. This finding was consistent with logistic regression, where predictors related to the television aspect were dropped due to a lack of statistical significance. On the other hand, \textit{categories} and the \textit{ratio difference} between the amount asked and valuation consistently proved to be significant predictors of whether a deal was made. Similarly, in the QDA model, certain categories were significant; however, season-related data exhibited a wider spread of values, hinting at minor influence.
+
+Our clustering techniques further supported these findings. While there may be some influence from television-specific characteristics, such influence appears to be minimal. However, it is worth noting that variables related to the show were present, albeit to a lesser extent, across multiple models. The primary drivers of investment decisions were consistently the project’s \textit{category} and \textit{financial valuation} (or related metrics). Therefore, entrepreneurs should prioritize strengthening their financial valuations, as these consistently emerged as the most critical predictors of investment success.
+
+Interestingly, the role of investors was consistently insignificant in our predictive models. This finding, coupled with the average values observed in the QDA analysis, suggests a potential bias among investors to balance their decisions—to make deals and reject pitches in roughly equal proportions. Alternatively, it is possible that the application process to appear on the show filters pitches in a way that aligns with what the investors consider good business ideas. Additionally, it is conceivable that some members of specific investor combinations are more likely to make deals than others, an aspect that could not be explored due to the limitations of the available data. Incorporating this information into future models would provide valuable insights.
+
+While the influence of television-related factors was not as strong as initially hypothesized, it was present to some degree. This, combined with the lack of significance of certain predictors, offers important takeaways for entrepreneurs. As mentioned earlier, they should focus on avoiding less promising categories and refining their financial valuations. Since the role of individual investors appears to be limited, entrepreneurs should consider that a rejection on the show does not necessarily reflect the viability of their business. Moreover, they should avoid excessive expenditures or over-preparation for the sake of impressing the investors, as this could jeopardize the financial health of their startup.
+
+\newpage
+\section{Appendix}
+
+\section*{6.1 Data Description}
+The following table describes the variables for the Shark Tank dataset:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Results/Variable description.png} % Use the exact file name of your image
+    \caption{Table for data description.}
+    \label{fig:table_description}
+\end{figure}
+
+\section*{6.2 Testing interaction between variables}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Results/PCAPlot1.png} % Use the exact file name of your image
+    \caption{PCA 1 and 2 .}
+    \label{fig:table_description}
+\end{figure}
+
+
+
+\section*{6.3 Histograms for Continuous Variables}
+The following histograms illustrate the distributions of key continuous variables.
+
+\begin{figure}[H]
+    \centering
+    % First row of subfigures
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Histogram ratio difference asked.png} % Replace with the actual file path
+        \caption{Rate Difference Asked}
+        \label{fig:rate_difference}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Histogram description length.png} % Replace with the actual file path
+        \caption{Description Length}
+        \label{fig:description_length}
+    \end{subfigure}
+    % Add caption below all subfigures
+    \caption{Histograms for continuous variables.}
+    \label{fig:histograms_continuous}
+\end{figure}
+
+\section*{6.4 Bar Charts for Categorical Variables}
+
+\begin{figure}[H]
+    \centering
+    % First row of bar charts
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart location.png} % Replace with actual file path
+        \caption{Location}
+        \label{fig:Location}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart category.png} % Replace with actual file path
+        \caption{Category}
+        \label{fig:Category}
+    \end{subfigure}
+    
+    % Second row of bar charts
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart season.png} % Replace with actual file path
+        \caption{Season}
+        \label{fig:Season}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart episode.season.png} % Replace with actual file path
+        \caption{episode.season}
+        \label{fig:Episode.season}
+    \end{subfigure}
+
+    % Second row of bar charts
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart shark1.png} % Replace with actual file path
+        \caption{Shark 1}
+        \label{fig:shark 1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart shark2.png} % Replace with actual file path
+        \caption{Shark 2}
+        \label{fig:shark 2}
+    \end{subfigure}
+
+    % Third row of bar charts
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart shark3.png} % Replace with actual file path
+        \caption{Shark 3}
+        \label{fig:shark 3}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart shark4.png} % Replace with actual file path
+        \caption{Shark 4}
+        \label{fig:shark 4}
+    \end{subfigure}
+
+    % Second row of bar charts
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart shark5.png} % Replace with actual file path
+        \caption{Shark 5}
+        \label{fig:shark 5}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart episode.png} % Replace with actual file path
+        \caption{Episode}
+        \label{Episode}
+    \end{subfigure}    
+
+    \caption{Bar charts for categorical variables.}
+    \label{fig:bar_charts_categorical}
+\end{figure}
+
+\section*{6.5 Bar Charts for Binary Variables}
+The following bar charts show the distributions for binary variables.
+
+\begin{figure}[H]
+    \centering
+    % Top row of bar charts
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart multiple.entreprenuers.png} % Replace with actual file path
+        \caption{Multiple Entrepreneurs}
+        \label{fig:multiple_entrepreneurs}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/barchart does_it_have_website.png} % Replace with actual file path
+        \caption{Does it Have a Website}
+        \label{fig:does_have_website}
+    \end{subfigure}
+
+    % Bottom row of bar chart
+    \begin{subfigure}[b]{0.7\textwidth}
+        \includegraphics[width=\textwidth]{Precleaned/Barchart deal.png} % Replace with actual file path
+        \caption{Deal}
+        \label{fig:deal}
+    \end{subfigure}
+
+    \caption{Bar charts for binary variables.}
+    \label{fig:bar_charts_binary}
+\end{figure}
+
+\newpage
+\section*{6.6 Box Plot for Outliers Detection}
+The following box plots illustrate the detection of outliers in numeric variables.
+
+\begin{figure}[H]
+    \centering
+    % Top row of box plots
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Outliers/Boxplot description length.png} % Replace with actual file path
+        \caption{Boxplot of Description Length}
+        \label{fig:description_length_boxplot}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Outliers/Boxplot exchange for Stake.png} % Replace with actual file path
+        \caption{Boxplot of Exchange for Stake}
+        \label{fig:exchangeForStake_boxplot}
+    \end{subfigure}
+
+    % Bottom row of box plots
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Outliers/Boxplot valuation.png} % Replace with actual file path
+        \caption{Valuation}
+        \label{fig:valuation_boxplot}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Outliers/Boxplot asked valuation.png} % Replace with actual file path
+        \caption{Ratio Asked Valuation}
+        \label{fig:ratio_asked_valuation_boxplot}
+    \end{subfigure}
+
+    \caption{Box plot for outliers detection in numeric variables.}
+    \label{fig:box_plots_outliers}
+\end{figure}
+
+\section*{6.7 Numeric, categorical and binary variables created or changed after feature engineering}
+
+\begin{figure}[H]
+    \centering
+    % First row of charts (4 images)
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Postcleaned/Histogram 2 exchangeForstake.png} % Replace with actual file path
+        \caption{Exchange for Stake}
+        \label{fig:exchangeForStake}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Postcleaned/Barchart CA 2.png} % Replace with actual file path
+        \caption{CA}
+        \label{fig:CA}
+    \end{subfigure}
+
+    % Second row of charts
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Postcleaned/Barchart season_grouped 2.png} % Replace with actual file path
+        \caption{Season Grouped}
+        \label{fig:season_grouped}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \includegraphics[width=\textwidth]{Postcleaned/Barchart season_part 2.png} % Replace with actual file path
+        \caption{Season Part}
+        \label{fig:season_part}
+    \end{subfigure}
+
+    % Third row of charts (3 images)
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{Postcleaned/Barchart category 2.png} % Replace with actual file path
+        \caption{Category}
+        \label{fig:category}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{Postcleaned/Barchart region 2.png} % Replace with actual file path
+        \caption{Region}
+        \label{fig:region}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{Postcleaned/Barchart investor_combination 2.png} % Replace with actual file path
+        \caption{Investor Combination}
+        \label{fig:investor_combination}
+    \end{subfigure}
+
+    \caption{Histograms and bar charts for numeric, categorical, and binary variables after feature engineering. If the variable is not shown, it remained unchanged.}
+    \label{fig:combined_appendix}
+\end{figure}
+
+The bar charts display the distributions for key categorical variables.
+It is worth noting that the charts refer to location category and episode. season are missing the labels in the X axis for readability, but the values can be consulted in the code; they are not disclosed here to avoid extra pages in the report. 
+    
+\newpage % Start a new page for references
+\section*{References}
+
+\raggedright
+\vspace{0.5em}
+Micah Rosenbloom discusses shark tank versus reality. (2014). In Films On Demand. Films Media Group. \\
+\url{https://fod.infobase.com/PortalPlaylists.aspx?wID=103901\allowbreak&xtid=164690}
+
+\vspace{0.5em}
+Yu, J. (2024, June 28). How is a business valued on 'Shark Tank'? Investopedia. \\
+\url{https://www.investopedia.com/articles/company-insights/092116/how-business-valued\allowbreak-on-shark-tank.asp}
+
+\vspace{0.5em}
+Ketchum, D. (2023, April 25). 'Shark Tank' rejects that became super successful. Yahoo Finance. \\
+\url{https://finance.yahoo.com/news/shark-tank-rejects-became-super-\allowbreak110008433.html}
+
+\vspace{0.5em}
+Walton, J. (2024, May 17). 3 'Shark Tank' failures that made millions. Investopedia. \\
+\url{https://www.investopedia.com/articles/personal-finance/101515/3-shark-tank-\allowbreakfailures-made-millions.asp}
+
+\vspace{0.5em}
+USTVDB. (2024, November 22). Shark Tank ratings on ABC. \\
+\url{https://ustvdb.com/networks/abc/shows/\allowbreakshark-tank/}
+
+\vspace{0.5em}
+Investopedia. (n.d.). Business valuation. Retrieved December 1, 2024, from \\
+\url{https://www.investopedia.com/terms/b/\allowbreakbusiness-valuation.asp}
+
+\par
+
+
+
+\end{document}

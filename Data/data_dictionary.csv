@@ -1,0 +1,21 @@
+Data dictionary,,
+Column name,Data Type,Description
+deal,bool,Indicates if the pitch secured a deal (True/False).
+description,object,Text description of the pitch or product/service offered.
+episode,int64,Episode number where the pitch was aired.
+category,object,The category of the product/service pitched.
+entrepreneurs,object,Names of entrepreneurs presenting the pitch.
+location,object,Geographical location of the entrepreneurs.
+website,object,Website URL associated with the pitch or business.
+askedFor,int64,Amount of investment requested by the entrepreneurs (USD).
+exchangeForStake,int64,Percentage of equity offered in exchange for the investment.
+valuation,int64,Valuation of the business based on the requested investment and equity offered.
+season,int64,Season number of the show.
+shark1,object,Name of the first Shark evaluating the pitch.
+shark2,object,Name of the second Shark evaluating the pitch.
+shark3,object,Name of the third Shark evaluating the pitch.
+shark4,object,Name of the fourth Shark evaluating the pitch.
+shark5,object,Name of the fifth Shark evaluating the pitch.
+title,object,Title or name of the pitch or business idea.
+episode-season,object,"Concatenated field indicating episode and season (e.g., 1-1)."
+Multiple Entreprenuers,bool,Indicates if multiple entrepreneurs are involved (True/False).
